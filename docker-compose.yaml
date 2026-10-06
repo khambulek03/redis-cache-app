@@ -1,0 +1,50 @@
+services:
+  app_db:
+    image: postgres:16-alpine
+    container_name: app_data_container
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: learning_redis
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "#Nta@2016"
+    volumes:
+      - ./init-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - app_db_volume:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d learning_redis" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  cache_db:
+    image: redis:8-alpine
+    container_name: app_cache_container
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - cache_db_volume:/data
+    command: redis-server --appendonly yes --requirepass "#Nta@2016"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "#Nta@2016", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  app:
+    image: my-app:1.0
+    container_name: app_container
+    ports:
+      - "8090:8090"
+    depends_on:
+      - app_db
+      - cache_db
+    environment:
+      - DB_HOST=app_data_container
+      - REDIS_HOST=app_cache_container
+
+volumes:
+  app_db_volume:
+  cache_db_volume:
